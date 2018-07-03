@@ -59,7 +59,7 @@
 
 #Versions of various parts:
 
-%define buildid %{nil}
+%define buildid .CROC1
 %define pkgname qemu-kvm
 %define rhel_ma_suffix -ma
 %define rhel_suffix -rhel
@@ -1973,6 +1973,26 @@ Patch907: kvm-gluster-Handle-changed-glfs_ftruncate-signature.patch
 # For bz#1822236 - Add support for newer glusterfs [rhel-7.8.z]
 Patch908: kvm-gluster-the-glfs_io_cbk-callback-function-pointer-ad.patch
 
+# CROC patches and backports
+# ScaleIO driver feature
+Patch9000: 9000-configure-added-CONFIG_SIO-option.patch
+# ScaleIO driver feature
+Patch9001: 9001-fileposix-reuse-sysfs-getter-functiion.patch
+# ScaleIO driver feature
+Patch9002: 9002-fileposix-add-scaleio-driver-implementation.patch
+# ScaleIO driver feature
+Patch9003: 9003-qapi-add-scaleio-device-format.patch
+# Disable file locking
+Patch9004: 9004-fileposix-disable-file-locking-by-default.patch
+# Enable 'detect_zeroes' in drive_mirror
+Patch9005: 9005-blockdev-enable-detect_zeroes-on-target-bs-in-drive_.patch
+# add sio_device branch to BlockdevCreateOptions
+Patch9006: 9006-add-sio_device-branch-to-BlockdevCreateOptions.patch
+# block: pass device = true for SIO open
+Patch9007: 9007-block-pass-device-true-for-SIO-open.patch
+# block: update bdrv_sio_device fields
+Patch9008: 9008-block-update-bdrv_sio_device-fields.patch
+
 BuildRequires: zlib-devel
 BuildRequires: glib2-devel
 BuildRequires: which
@@ -3098,6 +3118,17 @@ chmod 755 $(ls tests/qemu-iotests/???)
 
 ApplyOptionalPatch qemu-kvm-test.patch
 
+# CROC patches and backports
+%patch9000 -p1
+%patch9001 -p1
+%patch9002 -p1
+%patch9003 -p1
+%patch9004 -p1
+%patch9005 -p1
+%patch9006 -p1
+%patch9007 -p1
+%patch9008 -p1
+
 # for tscdeadline_latency.flat
 %ifarch x86_64
   tar -xf %{SOURCE25}
@@ -3612,6 +3643,17 @@ useradd -r -u 107 -g qemu -G kvm -d / -s /sbin/nologin \
 %endif
 
 %changelog
+* Thu Sep 25 2020 Aleksandr Rudenko <fatruden@gmail.com> - ev-2.12.0-44.1.el7_8.1.CROC1
+- 9000-configure-added-CONFIG_SIO-option.patch
+- 9001-fileposix-reuse-sysfs-getter-functiion.patch
+- 9002-fileposix-add-scaleio-driver-implementation.patch
+- 9003-qapi-add-scaleio-device-format.patch
+- 9004-fileposix-disable-file-locking-by-default.patch
+- 9005-blockdev-enable-detect_zeroes-on-target-bs-in-drive_.patch
+- 9006-add-sio_device-branch-to-BlockdevCreateOptions.patch
+- 9007-block-pass-device-true-for-SIO-open.patch
+- 9008-block-update-bdrv_sio_device-fields.patch
+
 * Tue Apr 14 2020 Sandro Bonazzola <sbonazzo@redhat.com> - ev-2.12.0-44.1.el7_8.1
 - Removing RH branding from package name
 - Add support for newer glusterfs in CentOS 7.8
