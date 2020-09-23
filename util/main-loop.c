@@ -29,9 +29,11 @@
 #include "qemu/sockets.h"	// struct in_addr needed for libslirp.h
 #include "sysemu/qtest.h"
 #include "sysemu/cpus.h"
+#include "sysemu/replay.h"
 #include "slirp/libslirp.h"
 #include "qemu/main-loop.h"
 #include "block/aio.h"
+#include "qemu/error-report.h"
 
 #ifndef _WIN32
 
@@ -236,27 +238,27 @@ static int os_host_main_loop_wait(int64_t timeout)
         static bool notified;
 
         if (!notified && !qtest_enabled() && !qtest_driver()) {
-            fprintf(stderr,
-                    "main-loop: WARNING: I/O thread spun for %d iterations\n",
-                    MAX_MAIN_LOOP_SPIN);
+            warn_report("I/O thread spun for %d iterations",
+                        MAX_MAIN_LOOP_SPIN);
             notified = true;
         }
 
         timeout = SCALE_MS;
     }
 
+
     if (timeout) {
         spin_counter = 0;
-        qemu_mutex_unlock_iothread();
     } else {
         spin_counter++;
     }
+    qemu_mutex_unlock_iothread();
+    replay_mutex_unlock();
 
     ret = qemu_poll_ns((GPollFD *)gpollfds->data, gpollfds->len, timeout);
 
-    if (timeout) {
-        qemu_mutex_lock_iothread();
-    }
+    replay_mutex_lock();
+    qemu_mutex_lock_iothread();
 
     glib_pollfds_poll();
 
@@ -463,7 +465,12 @@ static int os_host_main_loop_wait(int64_t timeout)
     poll_timeout_ns = qemu_soonest_timeout(poll_timeout_ns, timeout);
 
     qemu_mutex_unlock_iothread();
+
+    replay_mutex_unlock();
+
     g_poll_ret = qemu_poll_ns(poll_fds, n_poll_fds + w->num, poll_timeout_ns);
+
+    replay_mutex_lock();
 
     qemu_mutex_lock_iothread();
     if (g_poll_ret > 0) {

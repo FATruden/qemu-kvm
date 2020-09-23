@@ -27,6 +27,7 @@
 #include "qapi/error.h"
 #include "sysemu/block-backend.h"
 #include "qemu/error-report.h"
+#include "qemu/option.h"
 #include "hw/sysbus.h"
 #include "hw/hw.h"
 #include "hw/i386/pc.h"
@@ -112,6 +113,8 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
     pflash_t *system_flash;
     MemoryRegion *flash_mem;
     char name[64];
+    void *flash_ptr;
+    int ret, flash_size;
 
     sector_bits = 12;
     sector_size = 1 << sector_bits;
@@ -168,6 +171,17 @@ static void pc_system_flash_init(MemoryRegion *rom_memory)
         if (unit == 0) {
             flash_mem = pflash_cfi01_get_memory(system_flash);
             pc_isa_bios_init(rom_memory, flash_mem, size);
+
+            /* Encrypt the pflash boot ROM */
+            if (kvm_memcrypt_enabled()) {
+                flash_ptr = memory_region_get_ram_ptr(flash_mem);
+                flash_size = memory_region_size(flash_mem);
+                ret = kvm_memcrypt_encrypt_data(flash_ptr, flash_size);
+                if (ret) {
+                    error_report("failed to encrypt pflash rom");
+                    exit(1);
+                }
+            }
         }
     }
 }
@@ -192,13 +206,6 @@ static void old_pc_system_rom_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
     if (bios_size <= 0 ||
         (bios_size % 65536) != 0) {
         goto bios_error;
-    }
-    if (shadow_bios_after_incoming && bios_size != 128 * 1024) {
-        MachineClass *mc;
-
-        mc = MACHINE_GET_CLASS(current_machine);
-        error_report("machine %s only supports a 128KB BIOS image", mc->name);
-        exit(1);
     }
     bios = g_malloc(sizeof(*bios));
     memory_region_init_ram(bios, NULL, "pc.bios", bios_size, &error_fatal);
@@ -245,15 +252,6 @@ void pc_system_firmware_init(MemoryRegion *rom_memory, bool isapc_ram_fw)
         /* When a pflash drive is not found, use rom-mode */
         old_pc_system_rom_init(rom_memory, isapc_ram_fw);
         return;
-    }
-
-    if (shadow_bios_after_incoming) {
-        MachineClass *mc;
-
-        mc = MACHINE_GET_CLASS(current_machine);
-        error_report("flash-based firmware is not supported by machine %s",
-                     mc->name);
-        exit(1);
     }
 
     if (kvm_enabled() && !kvm_readonly_mem_enabled()) {

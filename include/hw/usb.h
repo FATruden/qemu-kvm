@@ -466,7 +466,6 @@ void usb_wakeup(USBEndpoint *ep, unsigned int stream);
 void usb_generic_async_ctrl_complete(USBDevice *s, USBPacket *p);
 
 /* usb-linux.c */
-USBDevice *usb_host_device_open(USBBus *bus, const char *devname);
 void hmp_info_usbhost(Monitor *mon, const QDict *qdict);
 bool usb_host_dev_is_scsi_storage(USBDevice *usbdev);
 
@@ -549,7 +548,6 @@ void usb_claim_port(USBDevice *dev, Error **errp);
 void usb_release_port(USBDevice *dev);
 void usb_device_attach(USBDevice *dev, Error **errp);
 int usb_device_detach(USBDevice *dev);
-int usb_device_delete_addr(int busnr, int addr);
 void usb_check_attach(USBDevice *dev, Error **errp);
 
 static inline USBBus *usb_bus_from_device(USBDevice *d)
@@ -607,12 +605,5 @@ int ehci_create_ich9_with_companions(PCIBus *bus, int slot);
 int usb_get_quirks(uint16_t vendor_id, uint16_t product_id,
                    uint8_t interface_class, uint8_t interface_subclass,
                    uint8_t interface_protocol);
-
-
-/* hcd-uhci.c -- RHEL-6 machine type compatibility */
-extern bool ich9_uhci123_irqpin_override;
-
-/* hcd-xhci.c -- rhel7.0.0 machine type compatibility */
-extern bool migrate_cve_2014_5263_xhci_fields;
 
 #endif

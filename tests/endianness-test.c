@@ -34,7 +34,6 @@ static const TestCase test_cases[] = {
     { "mips64", "mips", 0x14000000, .bswap = true },
     { "mips64", "malta", 0x10000000, .bswap = true },
     { "mips64el", "fulong2e", 0x1fd00000 },
-#if 0 /* Disabled for RHEL, since ISA is not enabled */
     { "ppc", "g3beige", 0xfe000000, .bswap = true, .superio = "i82378" },
     { "ppc", "prep", 0x80000000, .bswap = true },
     { "ppc", "bamboo", 0xe8000000, .bswap = true, .superio = "i82378" },
@@ -42,7 +41,6 @@ static const TestCase test_cases[] = {
     { "ppc64", "pseries", (1ULL << 45), .bswap = true, .superio = "i82378" },
     { "ppc64", "pseries-2.7", 0x10080000000ULL,
       .bswap = true, .superio = "i82378" },
-#endif /* Disabled for RHEL, since ISA is not enabled */
     { "sh4", "r2d", 0xfe240000, .superio = "i82378" },
     { "sh4eb", "r2d", 0xfe240000, .bswap = true, .superio = "i82378" },
     { "sparc64", "sun4u", 0x1fe02000000LL, .bswap = true },
@@ -116,13 +114,11 @@ static void isa_outl(const TestCase *test, uint16_t addr, uint32_t value)
 static void test_endianness(gconstpointer data)
 {
     const TestCase *test = data;
-    char *args;
 
-    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
-                           test->machine,
-                           test->superio ? " -device " : "",
-                           test->superio ?: "");
-    qtest_start(args);
+    global_qtest = qtest_startf("-M %s%s%s -device pc-testdev",
+                                test->machine,
+                                test->superio ? " -device " : "",
+                                test->superio ?: "");
     isa_outl(test, 0xe0, 0x87654321);
     g_assert_cmphex(isa_inl(test, 0xe0), ==, 0x87654321);
     g_assert_cmphex(isa_inw(test, 0xe2), ==, 0x8765);
@@ -185,19 +181,16 @@ static void test_endianness(gconstpointer data)
     g_assert_cmphex(isa_inb(test, 0xe1), ==, 0x43);
     g_assert_cmphex(isa_inb(test, 0xe0), ==, 0x21);
     qtest_quit(global_qtest);
-    g_free(args);
 }
 
 static void test_endianness_split(gconstpointer data)
 {
     const TestCase *test = data;
-    char *args;
 
-    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
-                           test->machine,
-                           test->superio ? " -device " : "",
-                           test->superio ?: "");
-    qtest_start(args);
+    global_qtest = qtest_startf("-M %s%s%s -device pc-testdev",
+                                test->machine,
+                                test->superio ? " -device " : "",
+                                test->superio ?: "");
     isa_outl(test, 0xe8, 0x87654321);
     g_assert_cmphex(isa_inl(test, 0xe0), ==, 0x87654321);
     g_assert_cmphex(isa_inw(test, 0xe2), ==, 0x8765);
@@ -232,19 +225,16 @@ static void test_endianness_split(gconstpointer data)
     g_assert_cmphex(isa_inw(test, 0xe2), ==, 0x8765);
     g_assert_cmphex(isa_inw(test, 0xe0), ==, 0x4321);
     qtest_quit(global_qtest);
-    g_free(args);
 }
 
 static void test_endianness_combine(gconstpointer data)
 {
     const TestCase *test = data;
-    char *args;
 
-    args = g_strdup_printf("-M %s%s%s -device pc-testdev",
-                           test->machine,
-                           test->superio ? " -device " : "",
-                           test->superio ?: "");
-    qtest_start(args);
+    global_qtest = qtest_startf("-M %s%s%s -device pc-testdev",
+                                test->machine,
+                                test->superio ? " -device " : "",
+                                test->superio ?: "");
     isa_outl(test, 0xe0, 0x87654321);
     g_assert_cmphex(isa_inl(test, 0xe8), ==, 0x87654321);
     g_assert_cmphex(isa_inw(test, 0xea), ==, 0x8765);
@@ -279,7 +269,6 @@ static void test_endianness_combine(gconstpointer data)
     g_assert_cmphex(isa_inw(test, 0xea), ==, 0x8765);
     g_assert_cmphex(isa_inw(test, 0xe8), ==, 0x4321);
     qtest_quit(global_qtest);
-    g_free(args);
 }
 
 int main(int argc, char **argv)

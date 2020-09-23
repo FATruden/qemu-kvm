@@ -405,7 +405,7 @@ QEMU can automatically create a virtual FAT disk image from a
 directory tree. In order to use it, just type:
 
 @example
-qemu-kvm linux.img -hdb fat:/my_directory
+qemu-system-i386 linux.img -hdb fat:/my_directory
 @end example
 
 Then you access access to all the files in the @file{/my_directory}
@@ -415,14 +415,14 @@ them via SAMBA or NFS. The default access is @emph{read-only}.
 Floppies can be emulated with the @code{:floppy:} option:
 
 @example
-qemu-kvm linux.img -fda fat:floppy:/my_directory
+qemu-system-i386 linux.img -fda fat:floppy:/my_directory
 @end example
 
 A read/write support is available for testing (beta stage) with the
 @code{:rw:} option:
 
 @example
-qemu-kvm linux.img -fda fat:floppy:rw:/my_directory
+qemu-system-i386 linux.img -fda fat:floppy:rw:/my_directory
 @end example
 
 What you should @emph{never} do:
@@ -440,14 +440,14 @@ QEMU can access directly to block device exported using the Network Block Device
 protocol.
 
 @example
-qemu-kvm linux.img -hdb nbd://my_nbd_server.mydomain.org:1024/
+qemu-system-i386 linux.img -hdb nbd://my_nbd_server.mydomain.org:1024/
 @end example
 
 If the NBD server is located on the same host, you can use an unix socket instead
 of an inet socket:
 
 @example
-qemu-kvm linux.img -hdb nbd+unix://?socket=/tmp/my_socket
+qemu-system-i386 linux.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
 In this case, the block device must be exported using qemu-nbd:
@@ -464,23 +464,23 @@ qemu-nbd --socket=/tmp/my_socket --share=2 my_disk.qcow2
 @noindent
 and then you can use it with two guests:
 @example
-qemu-kvm linux1.img -hdb nbd+unix://?socket=/tmp/my_socket
-qemu-kvm linux2.img -hdb nbd+unix://?socket=/tmp/my_socket
+qemu-system-i386 linux1.img -hdb nbd+unix://?socket=/tmp/my_socket
+qemu-system-i386 linux2.img -hdb nbd+unix://?socket=/tmp/my_socket
 @end example
 
 If the nbd-server uses named exports (supported since NBD 2.9.18, or with QEMU's
 own embedded NBD server), you must specify an export name in the URI:
 @example
-qemu-kvm -cdrom nbd://localhost/debian-500-ppc-netinst
-qemu-kvm -cdrom nbd://localhost/openSUSE-11.1-ppc-netinst
+qemu-system-i386 -cdrom nbd://localhost/debian-500-ppc-netinst
+qemu-system-i386 -cdrom nbd://localhost/openSUSE-11.1-ppc-netinst
 @end example
 
 The URI syntax for NBD is supported since QEMU 1.3.  An alternative syntax is
 also available.  Here are some example of the older syntax:
 @example
-qemu-kvm linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
-qemu-kvm linux2.img -hdb nbd:unix:/tmp/my_socket
-qemu-kvm -cdrom nbd:localhost:10809:exportname=debian-500-ppc-netinst
+qemu-system-i386 linux.img -hdb nbd:my_nbd_server.mydomain.org:1024
+qemu-system-i386 linux2.img -hdb nbd:unix:/tmp/my_socket
+qemu-system-i386 -cdrom nbd:localhost:10809:exportname=debian-500-ppc-netinst
 @end example
 
 @node disk_images_sheepdog
@@ -505,7 +505,7 @@ qemu-img convert @var{filename} sheepdog:///@var{image}
 
 You can boot from the Sheepdog disk image with the command:
 @example
-qemu-kvm sheepdog:///@var{image}
+qemu-system-i386 sheepdog:///@var{image}
 @end example
 
 You can also create a snapshot of the Sheepdog image like qcow2.
@@ -517,7 +517,7 @@ where @var{tag} is a tag name of the newly created snapshot.
 To boot from the Sheepdog snapshot, specify the tag name of the
 snapshot.
 @example
-qemu-kvm sheepdog:///@var{image}#@var{tag}
+qemu-system-i386 sheepdog:///@var{image}#@var{tag}
 @end example
 
 You can create a cloned image from the existing snapshot.
@@ -530,14 +530,14 @@ is its tag name.
 You can use an unix socket instead of an inet socket:
 
 @example
-qemu-kvm sheepdog+unix:///@var{image}?socket=@var{path}
+qemu-system-i386 sheepdog+unix:///@var{image}?socket=@var{path}
 @end example
 
 If the Sheepdog daemon doesn't run on the local host, you need to
 specify one of the Sheepdog servers to connect to.
 @example
 qemu-img create sheepdog://@var{hostname}:@var{port}/@var{image} @var{size}
-qemu-kvm sheepdog://@var{hostname}:@var{port}/@var{image}
+qemu-system-i386 sheepdog://@var{hostname}:@var{port}/@var{image}
 @end example
 
 @node disk_images_iscsi
@@ -627,7 +627,7 @@ cat >iscsi.conf <<EOF
   header-digest = "CRC32C"
 EOF
 
-qemu-kvm -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
+qemu-system-i386 -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
     -readconfig iscsi.conf
 @end example
 
@@ -646,7 +646,7 @@ tgtadm --lld iscsi --mode logicalunit --op new --tid 1 --lun 2 \
     -b /IMAGES/cd.iso --device-type=cd
 tgtadm --lld iscsi --op bind --mode target --tid 1 -I ALL
 
-qemu-kvm -iscsi initiator-name=iqn.qemu.test:my-initiator \
+qemu-system-i386 -iscsi initiator-name=iqn.qemu.test:my-initiator \
     -boot d -drive file=iscsi://127.0.0.1/iqn.qemu.test/1 \
     -cdrom iscsi://127.0.0.1/iqn.qemu.test/2
 @end example
@@ -785,6 +785,43 @@ warning: ssh server @code{ssh.example.com:22} does not support fsync
 With sufficiently new versions of libssh2 and OpenSSH, @code{fsync} is
 supported.
 
+@node disk_images_nvme
+@subsection NVMe disk images
+
+NVM Express (NVMe) storage controllers can be accessed directly by a userspace
+driver in QEMU.  This bypasses the host kernel file system and block layers
+while retaining QEMU block layer functionalities, such as block jobs, I/O
+throttling, image formats, etc.  Disk I/O performance is typically higher than
+with @code{-drive file=/dev/sda} using either thread pool or linux-aio.
+
+The controller will be exclusively used by the QEMU process once started. To be
+able to share storage between multiple VMs and other applications on the host,
+please use the file based protocols.
+
+Before starting QEMU, bind the host NVMe controller to the host vfio-pci
+driver.  For example:
+
+@example
+# modprobe vfio-pci
+# lspci -n -s 0000:06:0d.0
+06:0d.0 0401: 1102:0002 (rev 08)
+# echo 0000:06:0d.0 > /sys/bus/pci/devices/0000:06:0d.0/driver/unbind
+# echo 1102 0002 > /sys/bus/pci/drivers/vfio-pci/new_id
+
+# qemu-system-x86_64 -drive file=nvme://@var{host}:@var{bus}:@var{slot}.@var{func}/@var{namespace}
+@end example
+
+Alternative syntax using properties:
+
+@example
+qemu-system-x86_64 -drive file.driver=nvme,file.device=@var{host}:@var{bus}:@var{slot}.@var{func},file.namespace=@var{namespace}
+@end example
+
+@var{host}:@var{bus}:@var{slot}.@var{func} is the NVMe controller's PCI device
+address on the host.
+
+@var{namespace} is the NVMe namespace number, starting from 1.
+
 @node disk_image_locking
 @subsection Disk image file locking
 
@@ -807,6 +844,16 @@ shortcomings of the POSIX locking API.
 QEMU transparently handles lock handover during shared storage migration.  For
 shared virtual disk images between multiple VMs, the "share-rw" device option
 should be used.
+
+By default, the guest has exclusive write access to its disk image. If the
+guest can safely share the disk image with other writers the @code{-device
+...,share-rw=on} parameter can be used.  This is only safe if the guest is
+running software, such as a cluster file system, that coordinates disk accesses
+to avoid corruption.
+
+Note that share-rw=on only declares the guest's ability to share the disk.
+Some QEMU features, such as image file formats, require exclusive write access
+to the disk image and this is unaffected by the share-rw=on option.
 
 Alternatively, locking can be fully disabled by "locking=off" block device
 option. In the command line, the option is usually in the form of

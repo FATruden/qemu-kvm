@@ -15,14 +15,17 @@
 
 #include "qemu-common.h"
 #include "qapi/error.h"
+#include "qapi/qapi-visit-introspect.h"
 #include "qapi/qobject-input-visitor.h"
-#include "test-qapi-types.h"
 #include "test-qapi-visit.h"
-#include "qapi/qmp/types.h"
+#include "qapi/qmp/qbool.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qnull.h"
+#include "qapi/qmp/qnum.h"
+#include "qapi/qmp/qstring.h"
 #include "qapi/qmp/qjson.h"
-#include "test-qmp-introspect.h"
-#include "qmp-introspect.h"
-#include "qapi-visit.h"
+#include "test-qapi-introspect.h"
+#include "qapi/qapi-introspect.h"
 
 typedef struct TestInputVisitorData {
     QObject *obj;
@@ -382,10 +385,10 @@ static void test_visitor_in_enum(TestInputVisitorData *data,
     Visitor *v;
     EnumOne i;
 
-    for (i = 0; EnumOne_lookup[i]; i++) {
+    for (i = 0; i < ENUM_ONE__MAX; i++) {
         EnumOne res = -1;
 
-        v = visitor_input_test_init(data, "%s", EnumOne_lookup[i]);
+        v = visitor_input_test_init(data, "%s", EnumOne_str(i));
 
         visit_type_EnumOne(v, NULL, &res, &error_abort);
         g_assert_cmpint(i, ==, res);
@@ -476,7 +479,7 @@ static void test_visitor_in_any(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "-42");
     visit_type_any(v, NULL, &res, &error_abort);
-    qnum = qobject_to_qnum(res);
+    qnum = qobject_to(QNum, res);
     g_assert(qnum);
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, -42);
@@ -484,22 +487,22 @@ static void test_visitor_in_any(TestInputVisitorData *data,
 
     v = visitor_input_test_init(data, "{ 'integer': -42, 'boolean': true, 'string': 'foo' }");
     visit_type_any(v, NULL, &res, &error_abort);
-    qdict = qobject_to_qdict(res);
+    qdict = qobject_to(QDict, res);
     g_assert(qdict && qdict_size(qdict) == 3);
     qobj = qdict_get(qdict, "integer");
     g_assert(qobj);
-    qnum = qobject_to_qnum(qobj);
+    qnum = qobject_to(QNum, qobj);
     g_assert(qnum);
     g_assert(qnum_get_try_int(qnum, &val));
     g_assert_cmpint(val, ==, -42);
     qobj = qdict_get(qdict, "boolean");
     g_assert(qobj);
-    qbool = qobject_to_qbool(qobj);
+    qbool = qobject_to(QBool, qobj);
     g_assert(qbool);
     g_assert(qbool_get_bool(qbool) == true);
     qobj = qdict_get(qdict, "string");
     g_assert(qobj);
-    qstring = qobject_to_qstring(qobj);
+    qstring = qobject_to(QString, qobj);
     g_assert(qstring);
     g_assert_cmpstr(qstring_get_str(qstring), ==, "foo");
     qobject_decref(res);
@@ -699,7 +702,7 @@ static void test_native_list_integer_helper(TestInputVisitorData *data,
         }
     }
     g_string_append_printf(gstr_union,  "{ 'type': '%s', 'data': [ %s ] }",
-                           UserDefNativeListUnionKind_lookup[kind],
+                           UserDefNativeListUnionKind_str(kind),
                            gstr_list->str);
     v = visitor_input_test_init_raw(data,  gstr_union->str);
 
@@ -1110,7 +1113,7 @@ static void test_visitor_in_fail_struct_missing(TestInputVisitorData *data,
     error_free_or_abort(&err);
     visit_optional(v, "optional", &present);
     g_assert(!present);
-    visit_type_enum(v, "enum", &en, EnumOne_lookup, &err);
+    visit_type_enum(v, "enum", &en, &EnumOne_lookup, &err);
     error_free_or_abort(&err);
     visit_type_int(v, "i64", &i64, &err);
     error_free_or_abort(&err);
@@ -1247,24 +1250,27 @@ static void test_visitor_in_fail_alternate(TestInputVisitorData *data,
 }
 
 static void do_test_visitor_in_qmp_introspect(TestInputVisitorData *data,
-                                              const char *schema_json)
+                                              const QLitObject *qlit)
 {
     SchemaInfoList *schema = NULL;
+    QObject *obj = qobject_from_qlit(qlit);
     Visitor *v;
 
-    v = visitor_input_test_init_raw(data, schema_json);
+    v = qobject_input_visitor_new(obj);
 
     visit_type_SchemaInfoList(v, NULL, &schema, &error_abort);
     g_assert(schema);
 
     qapi_free_SchemaInfoList(schema);
+    qobject_decref(obj);
+    visit_free(v);
 }
 
 static void test_visitor_in_qmp_introspect(TestInputVisitorData *data,
                                            const void *unused)
 {
-    do_test_visitor_in_qmp_introspect(data, test_qmp_schema_json);
-    do_test_visitor_in_qmp_introspect(data, qmp_schema_json);
+    do_test_visitor_in_qmp_introspect(data, &test_qmp_schema_qlit);
+    do_test_visitor_in_qmp_introspect(data, &qmp_schema_qlit);
 }
 
 int main(int argc, char **argv)
@@ -1373,7 +1379,7 @@ int main(int argc, char **argv)
                            NULL, test_visitor_in_fail_alternate);
     input_visitor_test_add("/visitor/input/fail/union-native-list",
                            NULL, test_visitor_in_fail_union_native_list);
-    input_visitor_test_add("/visitor/input/qmp-introspect",
+    input_visitor_test_add("/visitor/input/qapi-introspect",
                            NULL, test_visitor_in_qmp_introspect);
 
     g_test_run();

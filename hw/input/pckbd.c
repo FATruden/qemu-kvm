@@ -26,7 +26,7 @@
 #include "hw/isa/isa.h"
 #include "hw/i386/pc.h"
 #include "hw/input/ps2.h"
-#include "migration/migration.h"
+#include "hw/input/i8042.h"
 #include "sysemu/sysemu.h"
 
 /* debug PC keyboard */
@@ -390,11 +390,6 @@ static int kbd_outport_post_load(void *opaque, int version_id)
 static bool kbd_outport_needed(void *opaque)
 {
     KBDState *s = opaque;
-
-    if (migrate_pre_2_2) {
-        return false;
-    }
-
     return s->outport != kbd_outport_default(s);
 }
 
@@ -486,7 +481,6 @@ void i8042_mm_init(qemu_irq kbd_irq, qemu_irq mouse_irq,
     qemu_register_reset(kbd_reset, s);
 }
 
-#define TYPE_I8042 "i8042"
 #define I8042(obj) OBJECT_CHECK(ISAKBDState, (obj), TYPE_I8042)
 
 typedef struct ISAKBDState {
@@ -576,8 +570,6 @@ static void i8042_class_initfn(ObjectClass *klass, void *data)
 
     dc->realize = i8042_realizefn;
     dc->vmsd = &vmstate_kbd_isa;
-    /* Disabled for Red Hat Enterprise Linux: */
-    dc->user_creatable = false;
 }
 
 static const TypeInfo i8042_info = {

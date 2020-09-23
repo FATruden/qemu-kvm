@@ -10,14 +10,13 @@
 #include "qemu/osdep.h"
 
 #include "qemu-common.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 #include "qemu/cutils.h"
 #include "libqtest.h"
-#include "qapi/qmp/types.h"
 
 static const char *blacklist_x86[] = {
-    "xenfv", "xenpv",
-    "rhel6.6.0", "rhel6.5.0", "rhel6.4.0", "rhel6.3.0",
-    "rhel6.2.0", "rhel6.1.0", "rhel6.0.0", NULL
+    "xenfv", "xenpv", NULL
 };
 
 static const struct {
@@ -63,9 +62,9 @@ static void test_properties(const char *path, bool recurse)
     }
 
     g_assert(qdict_haskey(response, "return"));
-    list = qobject_to_qlist(qdict_get(response, "return"));
+    list = qobject_to(QList, qdict_get(response, "return"));
     QLIST_FOREACH_ENTRY(list, entry) {
-        tuple = qobject_to_qdict(qlist_entry_obj(entry));
+        tuple = qobject_to(QDict, qlist_entry_obj(entry));
         bool is_child = strstart(qdict_get_str(tuple, "type"), "child<", NULL);
         bool is_link = strstart(qdict_get_str(tuple, "type"), "link<", NULL);
 

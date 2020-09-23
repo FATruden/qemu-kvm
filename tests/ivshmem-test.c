@@ -131,6 +131,7 @@ static void setup_vm_cmd(IVState *s, const char *cmd, bool msix)
         g_printerr("ivshmem-test tests are only available on x86 or ppc64\n");
         exit(EXIT_FAILURE);
     }
+    global_qtest = s->qs->qts;
     s->dev = get_device(s->qs->pcibus);
 
     s->reg_bar = qpci_iomap(s->dev, 0, &barsize);
@@ -256,7 +257,6 @@ static void test_ivshmem_pair(void)
     g_free(data);
 }
 
-#if 0 /* Disabled for Red Hat Enterprise Linux: */
 typedef struct ServerThread {
     GThread *thread;
     IvshmemServer *server;
@@ -414,11 +414,9 @@ static void test_ivshmem_server_irq(void)
 {
     test_ivshmem_server(false);
 }
-#endif
 
 #define PCI_SLOT_HP             0x06
 
-#if 0 /* Test uses legacy ivshmem, which is disabled for Red Hat Enterprise Linux: */
 static void test_ivshmem_hotplug(void)
 {
     const char *arch = qtest_get_arch();
@@ -436,7 +434,6 @@ static void test_ivshmem_hotplug(void)
     qtest_end();
     g_free(opts);
 }
-#endif
 
 static void test_ivshmem_memdev(void)
 {
@@ -504,7 +501,7 @@ static gchar *mktempshm(int size, int *fd)
 int main(int argc, char **argv)
 {
     int ret, fd;
-/*    const char *arch = qtest_get_arch(); */
+    const char *arch = qtest_get_arch();
     gchar dir[] = "/tmp/ivshmem-test.XXXXXX";
 
 #if !GLIB_CHECK_VERSION(2, 31, 0)
@@ -531,18 +528,14 @@ int main(int argc, char **argv)
     tmpserver = g_strconcat(tmpdir, "/server", NULL);
 
     qtest_add_func("/ivshmem/single", test_ivshmem_single);
-#if 0 /* Test uses legacy ivshmem, which is disabled for Red Hat Enterprise Linux: */
     qtest_add_func("/ivshmem/hotplug", test_ivshmem_hotplug);
-#endif
     qtest_add_func("/ivshmem/memdev", test_ivshmem_memdev);
     if (g_test_slow()) {
         qtest_add_func("/ivshmem/pair", test_ivshmem_pair);
-#if 0 /* Disabled for Red Hat Enterprise Linux: */
         if (strcmp(arch, "ppc64") != 0) {
             qtest_add_func("/ivshmem/server-msi", test_ivshmem_server_msi);
             qtest_add_func("/ivshmem/server-irq", test_ivshmem_server_irq);
         }
-#endif
     }
 
     ret = g_test_run();

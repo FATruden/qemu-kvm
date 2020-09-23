@@ -790,15 +790,6 @@ static void virtio_scsi_hotplug(HotplugHandler *hotplug_dev, DeviceState *dev,
     VirtIOSCSI *s = VIRTIO_SCSI(vdev);
     SCSIDevice *sd = SCSI_DEVICE(dev);
 
-    /* XXX: Remove this check once block backend is capable of handling
-     * AioContext change upon eject/insert.
-     * s->ctx is NULL if ioeventfd is off, s->ctx is qemu_get_aio_context() if
-     * data plane is not used, both cases are safe for scsi-cd. */
-    if (s->ctx && s->ctx != qemu_get_aio_context() &&
-        object_dynamic_cast(OBJECT(dev), "scsi-cd")) {
-        error_setg(errp, "scsi-cd is not supported by data plane");
-        return;
-    }
     if (s->ctx && !s->dataplane_fenced) {
         if (blk_op_is_blocked(sd->conf.blk, BLOCK_OP_TYPE_DATAPLANE, errp)) {
             return;
@@ -876,10 +867,10 @@ void virtio_scsi_common_realize(DeviceState *dev,
     s->sense_size = VIRTIO_SCSI_SENSE_DEFAULT_SIZE;
     s->cdb_size = VIRTIO_SCSI_CDB_DEFAULT_SIZE;
 
-    s->ctrl_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, ctrl);
-    s->event_vq = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, evt);
+    s->ctrl_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, ctrl);
+    s->event_vq = virtio_add_queue(vdev, s->conf.virtqueue_size, evt);
     for (i = 0; i < s->conf.num_queues; i++) {
-        s->cmd_vqs[i] = virtio_add_queue(vdev, VIRTIO_SCSI_VQ_SIZE, cmd);
+        s->cmd_vqs[i] = virtio_add_queue(vdev, s->conf.virtqueue_size, cmd);
     }
 }
 
@@ -926,6 +917,8 @@ static void virtio_scsi_device_unrealize(DeviceState *dev, Error **errp)
 
 static Property virtio_scsi_properties[] = {
     DEFINE_PROP_UINT32("num_queues", VirtIOSCSI, parent_obj.conf.num_queues, 1),
+    DEFINE_PROP_UINT32("virtqueue_size", VirtIOSCSI,
+                                         parent_obj.conf.virtqueue_size, 128),
     DEFINE_PROP_UINT32("max_sectors", VirtIOSCSI, parent_obj.conf.max_sectors,
                                                   0xFFFF),
     DEFINE_PROP_UINT32("cmd_per_lun", VirtIOSCSI, parent_obj.conf.cmd_per_lun,

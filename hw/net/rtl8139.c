@@ -58,9 +58,7 @@
 #include "qemu/timer.h"
 #include "net/net.h"
 #include "net/eth.h"
-#include "hw/loader.h"
 #include "sysemu/sysemu.h"
-#include "qemu/iov.h"
 
 /* debug RTL8139 card */
 //#define DEBUG_RTL8139 1
@@ -882,7 +880,7 @@ static ssize_t rtl8139_do_receive(NetClientState *nc, const uint8_t *buf, size_t
                 return size;
             }
 
-            int mcast_idx = compute_mcast_idx(buf);
+            int mcast_idx = net_crc32(buf, ETH_ALEN) >> 26;
 
             if (!(s->mult[mcast_idx >> 3] & (1 << (mcast_idx & 7))))
             {
@@ -3132,38 +3130,6 @@ static uint32_t rtl8139_io_readl(void *opaque, uint8_t addr)
 
 /* */
 
-static void rtl8139_mmio_writeb(void *opaque, hwaddr addr, uint32_t val)
-{
-    rtl8139_io_writeb(opaque, addr & 0xFF, val);
-}
-
-static void rtl8139_mmio_writew(void *opaque, hwaddr addr, uint32_t val)
-{
-    rtl8139_io_writew(opaque, addr & 0xFF, val);
-}
-
-static void rtl8139_mmio_writel(void *opaque, hwaddr addr, uint32_t val)
-{
-    rtl8139_io_writel(opaque, addr & 0xFF, val);
-}
-
-static uint32_t rtl8139_mmio_readb(void *opaque, hwaddr addr)
-{
-    return rtl8139_io_readb(opaque, addr & 0xFF);
-}
-
-static uint32_t rtl8139_mmio_readw(void *opaque, hwaddr addr)
-{
-    uint32_t val = rtl8139_io_readw(opaque, addr & 0xFF);
-    return val;
-}
-
-static uint32_t rtl8139_mmio_readl(void *opaque, hwaddr addr)
-{
-    uint32_t val = rtl8139_io_readl(opaque, addr & 0xFF);
-    return val;
-}
-
 static int rtl8139_post_load(void *opaque, int version_id)
 {
     RTL8139State* s = opaque;
@@ -3194,7 +3160,7 @@ static const VMStateDescription vmstate_rtl8139_hotplug_ready ={
     }
 };
 
-static void rtl8139_pre_save(void *opaque)
+static int rtl8139_pre_save(void *opaque)
 {
     RTL8139State* s = opaque;
     int64_t current_time = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
@@ -3202,11 +3168,13 @@ static void rtl8139_pre_save(void *opaque)
     /* for migration to older versions */
     s->TCTR = (current_time - s->TCTR_base) / PCI_PERIOD;
     s->rtl8139_mmio_io_addr_dummy = 0;
+
+    return 0;
 }
 
 static const VMStateDescription vmstate_rtl8139 = {
     .name = "rtl8139",
-    .version_id = 4,
+    .version_id = 5,
     .minimum_version_id = 3,
     .post_load = rtl8139_post_load,
     .pre_save  = rtl8139_pre_save,
@@ -3287,9 +3255,7 @@ static const VMStateDescription vmstate_rtl8139 = {
         VMSTATE_UINT32(tally_counters.TxMCol, RTL8139State),
         VMSTATE_UINT64(tally_counters.RxOkPhy, RTL8139State),
         VMSTATE_UINT64(tally_counters.RxOkBrd, RTL8139State),
-#if 0 /* Disabled for Red Hat Enterprise Linux bz 1420195 */
         VMSTATE_UINT32_V(tally_counters.RxOkMul, RTL8139State, 5),
-#endif
         VMSTATE_UINT16(tally_counters.TxAbt, RTL8139State),
         VMSTATE_UINT16(tally_counters.TxUndrn, RTL8139State),
 
@@ -3342,22 +3308,6 @@ static const MemoryRegionOps rtl8139_io_ops = {
     .impl = {
         .min_access_size = 1,
         .max_access_size = 4,
-    },
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
-static const MemoryRegionOps rtl8139_mmio_ops = {
-    .old_mmio = {
-        .read = {
-            rtl8139_mmio_readb,
-            rtl8139_mmio_readw,
-            rtl8139_mmio_readl,
-        },
-        .write = {
-            rtl8139_mmio_writeb,
-            rtl8139_mmio_writew,
-            rtl8139_mmio_writel,
-        },
     },
     .endianness = DEVICE_LITTLE_ENDIAN,
 };
@@ -3424,8 +3374,9 @@ static void pci_rtl8139_realize(PCIDevice *dev, Error **errp)
 
     memory_region_init_io(&s->bar_io, OBJECT(s), &rtl8139_io_ops, s,
                           "rtl8139", 0x100);
-    memory_region_init_io(&s->bar_mem, OBJECT(s), &rtl8139_mmio_ops, s,
-                          "rtl8139", 0x100);
+    memory_region_init_alias(&s->bar_mem, OBJECT(s), "rtl8139-mem", &s->bar_io,
+                             0, 0x100);
+
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_IO, &s->bar_io);
     pci_register_bar(dev, 1, PCI_BASE_ADDRESS_SPACE_MEMORY, &s->bar_mem);
 
@@ -3474,7 +3425,7 @@ static void rtl8139_class_init(ObjectClass *klass, void *data)
 
     k->realize = pci_rtl8139_realize;
     k->exit = pci_rtl8139_uninit;
-    k->romfile = "pxe-rtl8139.rom";
+    k->romfile = "efi-rtl8139.rom";
     k->vendor_id = PCI_VENDOR_ID_REALTEK;
     k->device_id = PCI_DEVICE_ID_REALTEK_8139;
     k->revision = RTL8139_PCI_REVID; /* >=0x20 is for 8139C+ */

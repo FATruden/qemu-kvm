@@ -73,8 +73,6 @@ but should be used with extreme caution.  Note that this command only
 resizes image files, it can not resize block devices like LVM volumes.
 ETEXI
 
-#ifdef CONFIG_LIVE_BLOCK_OPS
-
     {
         .name       = "block_stream",
         .args_type  = "device:B,speed:o?,base:s?",
@@ -108,7 +106,8 @@ ETEXI
         .args_type  = "force:-f,device:B",
         .params     = "[-f] device",
         .help       = "stop an active background block operation (use -f"
-                      "\n\t\t\t if the operation is currently paused)",
+                      "\n\t\t\t if you want to abort the operation immediately"
+                      "\n\t\t\t instead of keep running until data is in sync)",
         .cmd        = hmp_block_job_cancel,
     },
 
@@ -160,8 +159,6 @@ STEXI
 @findex block_job_resume
 Resume a paused block streaming operation.
 ETEXI
-
-#endif /* CONFIG_LIVE_BLOCK_OPS */
 
     {
         .name       = "eject",
@@ -257,9 +254,10 @@ ETEXI
 
     {
         .name       = "screendump",
-        .args_type  = "filename:F",
-        .params     = "filename",
-        .help       = "save screen into PPM image 'filename'",
+        .args_type  = "filename:F,device:s?,head:i?",
+        .params     = "filename [device [head]]",
+        .help       = "save screen from head 'head' of display device 'device' "
+                      "into PPM image 'filename'",
         .cmd        = hmp_screendump,
     },
 
@@ -267,20 +265,6 @@ STEXI
 @item screendump @var{filename}
 @findex screendump
 Save screen into PPM image @var{filename}.
-ETEXI
-
-    {
-        .name       = "__com.redhat_qxl_screendump",
-        .args_type  = "id:s,filename:F",
-        .params     = "id filename",
-        .help       = "save screen from qxl device 'id' into PPM image 'filename'",
-        .cmd = hmp___com_redhat_qxl_screen_dump,
-    },
-
-STEXI
-@item __com.redhat_qxl_screendump @var{id} @var{filename}
-@findex __com.redhat_qxl_screendump
-Save screen from qxl device @var{id} into PPM image @var{filename}.
 ETEXI
 
     {
@@ -683,41 +667,6 @@ STEXI
 Compute the checksum of a memory region.
 ETEXI
 
-#if 0 /* Disabled for Red Hat Enterprise Linux */
-    {
-        .name       = "usb_add",
-        .args_type  = "devname:s",
-        .params     = "device",
-        .help       = "add USB device (e.g. 'host:bus.addr' or 'host:vendor_id:product_id')",
-        .cmd        = hmp_usb_add,
-    },
-
-STEXI
-@item usb_add @var{devname}
-@findex usb_add
-Add the USB device @var{devname}. This command is deprecated, please
-use @code{device_add} instead. For details of available devices see
-@ref{usb_devices}
-ETEXI
-
-    {
-        .name       = "usb_del",
-        .args_type  = "devname:s",
-        .params     = "device",
-        .help       = "remove USB device 'bus.addr'",
-        .cmd        = hmp_usb_del,
-    },
-
-STEXI
-@item usb_del @var{devname}
-@findex usb_del
-Remove the USB device @var{devname} from the QEMU virtual USB
-hub. @var{devname} has the syntax @code{bus.addr}. Use the monitor
-command @code{info usb} to see the devices you can remove. This
-command is deprecated, please use @code{device_del} instead.
-ETEXI
-#endif
-
     {
         .name       = "device_add",
         .args_type  = "device:O",
@@ -1094,7 +1043,8 @@ ETEXI
         .params     = "",
         .help       = "Followup to a migration command to switch the migration"
                       " to postcopy mode. The postcopy-ram capability must "
-                      "be set before the original migration command.",
+                      "be set on both source and destination before the "
+                      "original migration command .",
         .cmd        = hmp_migrate_start_postcopy,
     },
 
@@ -1201,8 +1151,6 @@ STEXI
 Enables or disables migration mode.
 ETEXI
 
-#ifdef CONFIG_LIVE_BLOCK_OPS
-
     {
         .name       = "snapshot_blkdev",
         .args_type  = "reuse:-n,device:B,snapshot-file:s?,format:s?",
@@ -1223,8 +1171,6 @@ STEXI
 @findex snapshot_blkdev
 Snapshot device, using snapshot file as target if provided
 ETEXI
-
-#endif /* CONFIG_LIVE_BLOCK_OPS */
 
     {
         .name       = "snapshot_blkdev_internal",
@@ -1259,8 +1205,6 @@ STEXI
 @findex snapshot_delete_blkdev_internal
 Delete an internal snapshot on device if it support
 ETEXI
-
-#ifdef CONFIG_LIVE_BLOCK_OPS
 
     {
         .name       = "drive_mirror",
@@ -1305,8 +1249,6 @@ STEXI
 Start a point-in-time copy of a block device to a specificed target.
 ETEXI
 
-#endif /* CONFIG_LIVE_BLOCK_OPS */
-
     {
         .name       = "drive_add",
         .args_type  = "node:-n,pci_addr:s,opts:s",
@@ -1324,20 +1266,6 @@ STEXI
 @item drive_add
 @findex drive_add
 Add drive to PCI storage controller.
-ETEXI
-
-    {
-        .name       = "__com.redhat_drive_add",
-        .args_type  = "simple-drive:O",
-        .params     = "id=name,[file=file][,format=f][,media=d]...",
-        .help       = "Create a drive similar to -drive if=none.",
-        .cmd = hmp_simple_drive_add,
-    },
-
-STEXI
-@item __com.redhat_drive_add
-@findex __com.redhat_drive_add
-Create a drive similar to -drive if=none.
 ETEXI
 
     {
@@ -1363,38 +1291,6 @@ STEXI
 @findex pcie_aer_inject_error
 Inject PCIe AER error
 ETEXI
-
-#if 0 /* Disabled for Red Hat Enterprise Linux */
-    {
-        .name       = "host_net_add",
-        .args_type  = "device:s,opts:s?",
-        .params     = "tap|user|socket|vde|netmap|bridge|vhost-user|dump [options]",
-        .help       = "add host VLAN client (deprecated, use netdev_add instead)",
-        .cmd        = hmp_host_net_add,
-        .command_completion = host_net_add_completion,
-    },
-
-STEXI
-@item host_net_add
-@findex host_net_add
-Add host VLAN client. Deprecated, please use @code{netdev_add} instead.
-ETEXI
-
-    {
-        .name       = "host_net_remove",
-        .args_type  = "vlan_id:i,device:s",
-        .params     = "vlan_id name",
-        .help       = "remove host VLAN client (deprecated, use netdev_del instead)",
-        .cmd        = hmp_host_net_remove,
-        .command_completion = host_net_remove_completion,
-    },
-
-STEXI
-@item host_net_remove
-@findex host_net_remove
-Remove host VLAN client. Deprecated, please use @code{netdev_del} instead.
-ETEXI
-#endif
 
     {
         .name       = "netdev_add",
@@ -1460,7 +1356,7 @@ ETEXI
     {
         .name       = "hostfwd_add",
         .args_type  = "arg1:s,arg2:s?,arg3:s?",
-        .params     = "[vlan_id name] [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
+        .params     = "[hub_id name]|[netdev_id] [tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport",
         .help       = "redirect TCP or UDP connections from host to guest (requires -net user)",
         .cmd        = hmp_hostfwd_add,
     },
@@ -1475,7 +1371,7 @@ ETEXI
     {
         .name       = "hostfwd_remove",
         .args_type  = "arg1:s,arg2:s?,arg3:s?",
-        .params     = "[vlan_id name] [tcp|udp]:[hostaddr]:hostport",
+        .params     = "[hub_id name]|[netdev_id] [tcp|udp]:[hostaddr]:hostport",
         .help       = "remove host-to-guest TCP or UDP redirection",
         .cmd        = hmp_hostfwd_remove,
     },
@@ -1630,17 +1526,35 @@ ETEXI
 
     {
         .name       = "nbd_server_add",
-        .args_type  = "writable:-w,device:B",
-        .params     = "nbd_server_add [-w] device",
+        .args_type  = "writable:-w,device:B,name:s?",
+        .params     = "nbd_server_add [-w] device [name]",
         .help       = "export a block device via NBD",
         .cmd        = hmp_nbd_server_add,
     },
 STEXI
-@item nbd_server_add @var{device}
+@item nbd_server_add @var{device} [ @var{name} ]
 @findex nbd_server_add
 Export a block device through QEMU's NBD server, which must be started
 beforehand with @command{nbd_server_start}.  The @option{-w} option makes the
-exported device writable too.
+exported device writable too.  The export name is controlled by @var{name},
+defaulting to @var{device}.
+ETEXI
+
+    {
+        .name       = "nbd_server_remove",
+        .args_type  = "force:-f,name:s",
+        .params     = "nbd_server_remove [-f] name",
+        .help       = "remove an export previously exposed via NBD",
+        .cmd        = hmp_nbd_server_remove,
+    },
+STEXI
+@item nbd_server_remove [-f] @var{name}
+@findex nbd_server_remove
+Stop exporting a block device through QEMU's NBD server, which was
+previously started with @command{nbd_server_add}.  The @option{-f}
+option forces the server to drop the export immediately even if
+clients are connected; otherwise the command fails unless there are no
+clients.
 ETEXI
 
     {

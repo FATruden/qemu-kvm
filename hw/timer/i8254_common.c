@@ -24,7 +24,6 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "hw/isa/isa.h"
 #include "qemu/timer.h"
 #include "hw/timer/i8254.h"
@@ -93,7 +92,7 @@ int64_t pit_get_next_transition_time(PITChannelState *s, int64_t current_time)
         }
         break;
     case 2:
-        base = (d / s->count) * s->count;
+        base = QEMU_ALIGN_DOWN(d, s->count);
         if ((d - base) == 0 && d != 0) {
             next_time = base + s->count;
         } else {
@@ -101,7 +100,7 @@ int64_t pit_get_next_transition_time(PITChannelState *s, int64_t current_time)
         }
         break;
     case 3:
-        base = (d / s->count) * s->count;
+        base = QEMU_ALIGN_DOWN(d, s->count);
         period2 = ((s->count + 1) >> 1);
         if ((d - base) < period2) {
             next_time = base + period2;
@@ -237,7 +236,7 @@ static int pit_load_old(QEMUFile *f, void *opaque, int version_id)
     return 0;
 }
 
-static void pit_dispatch_pre_save(void *opaque)
+static int pit_dispatch_pre_save(void *opaque)
 {
     PITCommonState *s = opaque;
     PITCommonClass *c = PIT_COMMON_GET_CLASS(s);
@@ -245,6 +244,8 @@ static void pit_dispatch_pre_save(void *opaque)
     if (c->pre_save) {
         c->pre_save(s);
     }
+
+    return 0;
 }
 
 static int pit_dispatch_post_load(void *opaque, int version_id)
@@ -267,7 +268,7 @@ static const VMStateDescription vmstate_pit_common = {
     .pre_save = pit_dispatch_pre_save,
     .post_load = pit_dispatch_post_load,
     .fields = (VMStateField[]) {
-        VMSTATE_UINT32(channels[0].irq_disabled, PITCommonState), /* qemu-kvm's v2 had 'flags' here */
+        VMSTATE_UINT32_V(channels[0].irq_disabled, PITCommonState, 3),
         VMSTATE_STRUCT_ARRAY(channels, PITCommonState, 3, 2,
                              vmstate_pit_channel, PITChannelState),
         VMSTATE_INT64(channels[0].next_transition_time,

@@ -30,7 +30,6 @@
 #include "qemu/timer.h"
 #include "exec/address-spaces.h"
 #include "qemu/error-report.h"
-#include "migration/migration.h"
 
 //#define DEBUG_SERIAL
 
@@ -631,10 +630,12 @@ static void serial_event(void *opaque, int event)
         serial_receive_break(s);
 }
 
-static void serial_pre_save(void *opaque)
+static int serial_pre_save(void *opaque)
 {
     SerialState *s = opaque;
     s->fcr_vmstate = s->fcr;
+
+    return 0;
 }
 
 static int serial_pre_load(void *opaque)
@@ -690,9 +691,6 @@ static int serial_post_load(void *opaque, int version_id)
 static bool serial_thr_ipending_needed(void *opaque)
 {
     SerialState *s = opaque;
-    if (migrate_pre_2_2) {
-        return false;
-    }
 
     if (s->ier & UART_IER_THRI) {
         bool expected_value = ((s->iir & UART_IIR_ID) == UART_IIR_THRI);
@@ -774,10 +772,6 @@ static const VMStateDescription vmstate_serial_xmit_fifo = {
 static bool serial_fifo_timeout_timer_needed(void *opaque)
 {
     SerialState *s = (SerialState *)opaque;
-    if (migrate_pre_2_2) {
-        return false;
-    }
-
     return timer_pending(s->fifo_timeout_timer);
 }
 
@@ -795,10 +789,6 @@ static const VMStateDescription vmstate_serial_fifo_timeout_timer = {
 static bool serial_timeout_ipending_needed(void *opaque)
 {
     SerialState *s = (SerialState *)opaque;
-    if (migrate_pre_2_2) {
-        return false;
-    }
-
     return s->timeout_ipending != 0;
 }
 
@@ -816,10 +806,6 @@ static const VMStateDescription vmstate_serial_timeout_ipending = {
 static bool serial_poll_needed(void *opaque)
 {
     SerialState *s = (SerialState *)opaque;
-    if (migrate_pre_2_2) {
-        return false;
-    }
-
     return s->poll_msl >= 0;
 }
 
@@ -1019,7 +1005,7 @@ static void serial_mm_write(void *opaque, hwaddr addr,
                             uint64_t value, unsigned size)
 {
     SerialState *s = opaque;
-    value &= ~0u >> (32 - (size * 8));
+    value &= 255;
     serial_ioport_write(s, addr >> s->it_shift, value, 1);
 }
 
@@ -1028,16 +1014,22 @@ static const MemoryRegionOps serial_mm_ops[3] = {
         .read = serial_mm_read,
         .write = serial_mm_write,
         .endianness = DEVICE_NATIVE_ENDIAN,
+        .valid.max_access_size = 8,
+        .impl.max_access_size = 8,
     },
     [DEVICE_LITTLE_ENDIAN] = {
         .read = serial_mm_read,
         .write = serial_mm_write,
         .endianness = DEVICE_LITTLE_ENDIAN,
+        .valid.max_access_size = 8,
+        .impl.max_access_size = 8,
     },
     [DEVICE_BIG_ENDIAN] = {
         .read = serial_mm_read,
         .write = serial_mm_write,
         .endianness = DEVICE_BIG_ENDIAN,
+        .valid.max_access_size = 8,
+        .impl.max_access_size = 8,
     },
 };
 

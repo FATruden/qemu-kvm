@@ -28,14 +28,12 @@ static void test_a_boot_order(const char *machine,
                               uint64_t expected_boot,
                               uint64_t expected_reboot)
 {
-    char *args;
     uint64_t actual;
 
-    args = g_strdup_printf("-nodefaults%s%s %s",
-                           machine ? " -M " : "",
-                           machine ?: "",
-                           test_args);
-    qtest_start(args);
+    global_qtest = qtest_startf("-nodefaults%s%s %s",
+                                machine ? " -M " : "",
+                                machine ?: "",
+                                test_args);
     actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_boot);
     qmp_discard_response("{ 'execute': 'system_reset' }");
@@ -43,11 +41,10 @@ static void test_a_boot_order(const char *machine,
      * system_reset only requests reset.  We get a RESET event after
      * the actual reset completes.  Need to wait for that.
      */
-    qmp_discard_response("");   /* HACK: wait for event */
+    qmp_eventwait("RESET");
     actual = read_boot_order();
     g_assert_cmphex(actual, ==, expected_reboot);
     qtest_quit(global_qtest);
-    g_free(args);
 }
 
 static void test_boot_orders(const char *machine,
@@ -109,7 +106,6 @@ static void test_pc_boot_order(void)
     test_boot_orders(NULL, read_boot_order_pc, test_cases_pc);
 }
 
-#if 0 /* Disabled for RHEL, since CONFIG_MAC and CONFIG_PREP are not enabled */
 static uint8_t read_m48t59(uint64_t addr, uint16_t reg)
 {
     writeb(addr, reg & 0xff);
@@ -136,11 +132,10 @@ static void test_prep_boot_order(void)
 
 static uint64_t read_boot_order_pmac(void)
 {
-    QFWCFG *fw_cfg = mm_fw_cfg_init(0xf0000510);
+    QFWCFG *fw_cfg = mm_fw_cfg_init(global_qtest, 0xf0000510);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }
-#endif /* Disabled for RHEL, since CONFIG_MAC and CONFIG_PREP are not enabled */
 
 static const boot_order_test test_cases_fw_cfg[] = {
     { "", 'c', 'c' },
@@ -150,7 +145,6 @@ static const boot_order_test test_cases_fw_cfg[] = {
     {}
 };
 
-#if 0 /* Disabled for RHEL, since CONFIG_MAC and CONFIG_PREP are not enabled */
 static void test_pmac_oldworld_boot_order(void)
 {
     test_boot_orders("g3beige", read_boot_order_pmac, test_cases_fw_cfg);
@@ -159,13 +153,11 @@ static void test_pmac_oldworld_boot_order(void)
 static void test_pmac_newworld_boot_order(void)
 {
     test_boot_orders("mac99", read_boot_order_pmac, test_cases_fw_cfg);
-
 }
-#endif /* Disabled for RHEL, since CONFIG_MAC and CONFIG_PREP are not enabled */
 
 static uint64_t read_boot_order_sun4m(void)
 {
-    QFWCFG *fw_cfg = mm_fw_cfg_init(0xd00000510ULL);
+    QFWCFG *fw_cfg = mm_fw_cfg_init(global_qtest, 0xd00000510ULL);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }
@@ -177,7 +169,7 @@ static void test_sun4m_boot_order(void)
 
 static uint64_t read_boot_order_sun4u(void)
 {
-    QFWCFG *fw_cfg = io_fw_cfg_init(0x510);
+    QFWCFG *fw_cfg = io_fw_cfg_init(global_qtest, 0x510);
 
     return qfw_cfg_get_u16(fw_cfg, FW_CFG_BOOT_DEVICE);
 }
@@ -196,13 +188,11 @@ int main(int argc, char *argv[])
     if (strcmp(arch, "i386") == 0 || strcmp(arch, "x86_64") == 0) {
         qtest_add_func("boot-order/pc", test_pc_boot_order);
     } else if (strcmp(arch, "ppc") == 0 || strcmp(arch, "ppc64") == 0) {
-#if 0 /* Disabled for RHEL, since CONFIG_MAC and CONFIG_PREP are not enabled */
         qtest_add_func("boot-order/prep", test_prep_boot_order);
         qtest_add_func("boot-order/pmac_oldworld",
                        test_pmac_oldworld_boot_order);
         qtest_add_func("boot-order/pmac_newworld",
                        test_pmac_newworld_boot_order);
-#endif /* Disabled for RHEL, since CONFIG_MAC and CONFIG_PREP are not enabled */
     } else if (strcmp(arch, "sparc") == 0) {
         qtest_add_func("boot-order/sun4m", test_sun4m_boot_order);
     } else if (strcmp(arch, "sparc64") == 0) {

@@ -1178,7 +1178,7 @@ static const struct SCSIBusInfo vscsi_scsi_info = {
     .tcq = true,
     .max_channel = 7, /* logical unit addressing format */
     .max_target = 63,
-    .max_lun = 7,
+    .max_lun = 31,
 
     .transfer_data = vscsi_transfer_data,
     .complete = vscsi_command_complete,
@@ -1215,8 +1215,7 @@ void spapr_vscsi_create(VIOsPAPRBus *bus)
     dev = qdev_create(&bus->bus, "spapr-vscsi");
 
     qdev_init_nofail(dev);
-    scsi_bus_legacy_handle_cmdline(&VIO_SPAPR_VSCSI_DEVICE(dev)->bus,
-                                   false);
+    scsi_bus_legacy_handle_cmdline(&VIO_SPAPR_VSCSI_DEVICE(dev)->bus);
 }
 
 static int spapr_vscsi_devnode(VIOsPAPRDevice *dev, void *fdt, int node_off)

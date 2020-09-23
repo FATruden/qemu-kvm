@@ -25,14 +25,15 @@
 
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "hw/i386/pc.h"
 #include "hw/pci/pci.h"
 #include "hw/isa/isa.h"
 #include "sysemu/block-backend.h"
 #include "sysemu/sysemu.h"
+#include "sysemu/blockdev.h"
 #include "sysemu/dma.h"
 
 #include "hw/ide/pci.h"
+#include "trace.h"
 
 static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
 {
@@ -54,9 +55,8 @@ static uint64_t bmdma_read(void *opaque, hwaddr addr, unsigned size)
         val = 0xff;
         break;
     }
-#ifdef DEBUG_IDE
-    printf("bmdma: readb 0x%02x : 0x%02x\n", (uint8_t)addr, val);
-#endif
+
+    trace_bmdma_read(addr, val);
     return val;
 }
 
@@ -69,9 +69,8 @@ static void bmdma_write(void *opaque, hwaddr addr,
         return;
     }
 
-#ifdef DEBUG_IDE
-    printf("bmdma: writeb 0x%02x : 0x%02x\n", (uint8_t)addr, (uint8_t)val);
-#endif
+    trace_bmdma_write(addr, val);
+
     switch(addr & 3) {
     case 0:
         bmdma_cmd_writeb(bm, val);
@@ -254,8 +253,7 @@ static void piix3_ide_class_init(ObjectClass *klass, void *data)
     k->device_id = PCI_DEVICE_ID_INTEL_82371SB_1;
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
-    /* Disabled for Red Hat Enterprise Linux: */
-    dc->user_creatable = false;
+    dc->hotpluggable = false;
 }
 
 static const TypeInfo piix3_ide_info = {
@@ -282,8 +280,6 @@ static void piix4_ide_class_init(ObjectClass *klass, void *data)
     k->class_id = PCI_CLASS_STORAGE_IDE;
     set_bit(DEVICE_CATEGORY_STORAGE, dc->categories);
     dc->hotpluggable = false;
-    /* Disabled for Red Hat Enterprise Linux: */
-    dc->user_creatable = false;
 }
 
 static const TypeInfo piix4_ide_info = {

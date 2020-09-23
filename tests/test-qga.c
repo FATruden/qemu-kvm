@@ -5,6 +5,8 @@
 #include <sys/un.h>
 
 #include "libqtest.h"
+#include "qapi/qmp/qdict.h"
+#include "qapi/qmp/qlist.h"
 
 typedef struct {
     char *test_dir;
@@ -295,8 +297,8 @@ static void test_qga_get_vcpus(gconstpointer fix)
     /* check there is at least a cpu */
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "online"));
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "logical-id"));
+    g_assert(qdict_haskey(qobject_to(QDict, entry->value), "online"));
+    g_assert(qdict_haskey(qobject_to(QDict, entry->value), "logical-id"));
 
     QDECREF(ret);
 }
@@ -316,10 +318,10 @@ static void test_qga_get_fsinfo(gconstpointer fix)
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
     if (entry) {
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "name"));
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "mountpoint"));
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "type"));
-        g_assert(qdict_haskey(qobject_to_qdict(entry->value), "disk"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "name"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "mountpoint"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "type"));
+        g_assert(qdict_haskey(qobject_to(QDict, entry->value), "disk"));
     }
 
     QDECREF(ret);
@@ -361,8 +363,9 @@ static void test_qga_get_memory_blocks(gconstpointer fix)
         entry = qlist_first(list);
         /* newer versions of qga may return empty list without error */
         if (entry) {
-            g_assert(qdict_haskey(qobject_to_qdict(entry->value), "phys-index"));
-            g_assert(qdict_haskey(qobject_to_qdict(entry->value), "online"));
+            g_assert(qdict_haskey(qobject_to(QDict, entry->value),
+                                  "phys-index"));
+            g_assert(qdict_haskey(qobject_to(QDict, entry->value), "online"));
         }
     }
 
@@ -383,7 +386,7 @@ static void test_qga_network_get_interfaces(gconstpointer fix)
     /* check there is at least an interface */
     list = qdict_get_qlist(ret, "return");
     entry = qlist_first(list);
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "name"));
+    g_assert(qdict_haskey(qobject_to(QDict, entry->value), "name"));
 
     QDECREF(ret);
 }
@@ -642,65 +645,6 @@ static void test_qga_get_time(gconstpointer fix)
     QDECREF(ret);
 }
 
-static void test_qga_set_time(gconstpointer fix)
-{
-    const TestFixture *fixture = fix;
-    QDict *ret;
-    int64_t current, time;
-    gchar *cmd;
-
-    /* get current time */
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-time'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    current = qdict_get_int(ret, "return");
-    g_assert_cmpint(current, >, 0);
-    QDECREF(ret);
-
-    /* set some old time */
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-set-time',"
-                 " 'arguments': { 'time': 1000 } }");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    QDECREF(ret);
-
-    /* check old time */
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-get-time'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    time = qdict_get_int(ret, "return");
-    g_assert_cmpint(time / 1000, <, G_USEC_PER_SEC * 10);
-    QDECREF(ret);
-
-    /* set back current time */
-    cmd = g_strdup_printf("{'execute': 'guest-set-time',"
-                          " 'arguments': { 'time': %" PRId64 " } }",
-                          current + time * 1000);
-    ret = qmp_fd(fixture->fd, cmd);
-    g_free(cmd);
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    QDECREF(ret);
-}
-
-static void test_qga_fstrim(gconstpointer fix)
-{
-    const TestFixture *fixture = fix;
-    QDict *ret;
-    QList *list;
-    const QListEntry *entry;
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fstrim',"
-                 " arguments: { minimum: 4194304 } }");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    list = qdict_get_qlist(ret, "return");
-    entry = qlist_first(list);
-    g_assert(qdict_haskey(qobject_to_qdict(entry->value), "paths"));
-
-    QDECREF(ret);
-}
-
 static void test_qga_blacklist(gconstpointer data)
 {
     TestFixture fix;
@@ -828,30 +772,6 @@ static void test_qga_fsfreeze_status(gconstpointer fix)
     status = qdict_get_try_str(ret, "return");
     g_assert_cmpstr(status, ==, "thawed");
 
-    QDECREF(ret);
-}
-
-static void test_qga_fsfreeze_and_thaw(gconstpointer fix)
-{
-    const TestFixture *fixture = fix;
-    QDict *ret;
-    const gchar *status;
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fsfreeze-freeze'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    QDECREF(ret);
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fsfreeze-status'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
-    status = qdict_get_try_str(ret, "return");
-    g_assert_cmpstr(status, ==, "frozen");
-    QDECREF(ret);
-
-    ret = qmp_fd(fixture->fd, "{'execute': 'guest-fsfreeze-thaw'}");
-    g_assert_nonnull(ret);
-    qmp_assert_no_error(ret);
     QDECREF(ret);
 }
 
@@ -1028,13 +948,6 @@ int main(int argc, char **argv)
                          test_qga_guest_exec_invalid);
     g_test_add_data_func("/qga/guest-get-osinfo", &fix,
                          test_qga_guest_get_osinfo);
-
-    if (g_getenv("QGA_TEST_SIDE_EFFECTING")) {
-        g_test_add_data_func("/qga/fsfreeze-and-thaw", &fix,
-                             test_qga_fsfreeze_and_thaw);
-        g_test_add_data_func("/qga/set-time", &fix, test_qga_set_time);
-        g_test_add_data_func("/qga/fstrim", &fix, test_qga_fstrim);
-    }
 
     ret = g_test_run();
 

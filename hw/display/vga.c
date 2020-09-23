@@ -24,11 +24,10 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/hw.h"
-#include "vga.h"
-#include "ui/console.h"
-#include "hw/i386/pc.h"
+#include "hw/display/vga.h"
 #include "hw/pci/pci.h"
 #include "vga_int.h"
+#include "vga_regs.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
 #include "hw/xen/xen.h"
@@ -1445,11 +1444,6 @@ static bool vga_scanline_invalidated(VGACommonState *s, int y)
     return s->invalidated_y_table[y >> 5] & (1 << (y & 0x1f));
 }
 
-void vga_sync_dirty_bitmap(VGACommonState *s)
-{
-    memory_region_sync_dirty_bitmap(&s->vram);
-}
-
 void vga_dirty_log_start(VGACommonState *s)
 {
     memory_region_set_log(&s->vram, true, DIRTY_MEMORY_VGA);
@@ -1634,14 +1628,13 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
            s->line_compare, sr(s, VGA_SEQ_CLOCK_MODE));
 #endif
     addr1 = (s->start_addr * 4);
-    bwidth = (width * bits + 7) / 8;
+    bwidth = DIV_ROUND_UP(width * bits, 8);
     y_start = -1;
     d = surface_data(surface);
     linesize = surface_stride(surface);
     y1 = 0;
 
     if (!full_update) {
-        vga_sync_dirty_bitmap(s);
         if (s->line_compare < height) {
             /* split screen mode */
             region_start = 0;
@@ -1671,9 +1664,9 @@ static void vga_draw_graphic(VGACommonState *s, int full_update)
             /* scanline wraps from end of video memory to the start */
             assert(force_shadow);
             update = memory_region_snapshot_get_dirty(&s->vram, snap,
-                                                      page0, 0);
+                                                      page0, s->vbe_size - page0);
             update |= memory_region_snapshot_get_dirty(&s->vram, snap,
-                                                       page1, 0);
+                                                       0, page1);
         } else {
             update = memory_region_snapshot_get_dirty(&s->vram, snap,
                                                       page0, page1 - page0);
@@ -2068,6 +2061,7 @@ static int vga_common_post_load(void *opaque, int version_id)
     /* force refresh */
     s->graphic_mode = -1;
     vbe_update_vgaregs(s);
+    vga_update_memory_access(s);
     return 0;
 }
 

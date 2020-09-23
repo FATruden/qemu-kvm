@@ -506,7 +506,6 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     int rc;
     int sg_version;
     struct sg_scsi_id scsiid;
-    Error *local_err = NULL;
 
     if (!s->conf.blk) {
         error_setg(errp, "drive property not set");
@@ -525,9 +524,10 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
     /* check we are using a driver managing SG_IO (version 3 and after */
     rc = blk_ioctl(s->conf.blk, SG_GET_VERSION_NUM, &sg_version);
     if (rc < 0) {
-        error_setg(errp, "cannot get SG_IO version number: %s.  "
-                         "Is this a SCSI device?",
-                         strerror(-rc));
+        error_setg_errno(errp, -rc, "cannot get SG_IO version number");
+        if (rc != -EPERM) {
+            error_append_hint(errp, "Is this a SCSI device?\n");
+        }
         return;
     }
     if (sg_version < 30000) {
@@ -540,11 +540,9 @@ static void scsi_generic_realize(SCSIDevice *s, Error **errp)
         error_setg(errp, "SG_GET_SCSI_ID ioctl failed");
         return;
     }
-    blkconf_apply_backend_options(&s->conf,
-                                  blk_is_read_only(s->conf.blk),
-                                  true, &local_err);
-    if (local_err) {
-        error_propagate(errp, local_err);
+    if (!blkconf_apply_backend_options(&s->conf,
+                                       blk_is_read_only(s->conf.blk),
+                                       true, errp)) {
         return;
     }
 

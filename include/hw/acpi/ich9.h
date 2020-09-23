@@ -61,10 +61,9 @@ typedef struct ICH9LPCPMRegs {
     uint8_t smm_enabled;
     bool enable_tco;
     TCOIORegs tco_regs;
-
-    /* RH addition, see bz 1489800 */
-    bool force_rev1_fadt;
 } ICH9LPCPMRegs;
+
+#define ACPI_PM_PROP_TCO_ENABLED "enable_tco"
 
 void ich9_pm_init(PCIDevice *lpc_pci, ICH9LPCPMRegs *pm,
                   bool smm_enabled,

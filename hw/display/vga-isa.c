@@ -25,8 +25,7 @@
  */
 #include "qemu/osdep.h"
 #include "hw/hw.h"
-#include "ui/console.h"
-#include "hw/i386/pc.h"
+#include "hw/isa/isa.h"
 #include "vga_int.h"
 #include "ui/pixel_ops.h"
 #include "qemu/timer.h"
@@ -80,7 +79,7 @@ static void vga_isa_realizefn(DeviceState *dev, Error **errp)
 }
 
 static Property vga_isa_properties[] = {
-    DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 16),
+    DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 8),
     DEFINE_PROP_END_OF_LIST(),
 };
 
